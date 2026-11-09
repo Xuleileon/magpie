@@ -17,10 +17,11 @@ import (
 
 const searchUsage = `usage:
   magpie search                              the search APIs a model's web search goes to
-  magpie search add <api> <key> [url=<address>] [pick=turns|order]
+  magpie search add <api> <key> [url=<address>] [pick=turns|order] [type=lite|auto]
                                              add one, or give one a new key
                                              (several keys as k1,k2: searches take them in turn,
-                                             or with pick=order the first until it is refused)
+                                             or with pick=order the first until it is refused;
+                                             type=lite asks Exa's low-cost search, auto its default)
   magpie search add searxng url=<address> [<key>]
   magpie search add you [<key>]              You.com: free with no key (100 searches a day)
   magpie search off <api>                    keep one, key and all, but never ask it
@@ -89,6 +90,9 @@ func searchCmd(args []string) error {
 			if a.URL != "" {
 				what += "  " + a.URL
 			}
+			if a.Type != "" {
+				what += "  " + a.Type
+			}
 			if len(a.Keys()) > 1 {
 				what += map[bool]string{true: "  in order", false: "  in turn"}[a.Pick == provider.SearchPickOrder]
 			}
@@ -132,10 +136,16 @@ func searchCmd(args []string) error {
 				if a.Pick = p; p == "" {
 					a.Pick = "turns"
 				}
+			} else if t, ok := strings.CutPrefix(v, "type="); ok {
+				// a new key alone keeps the type set before; type= with
+				// nothing after it, or auto, puts the API's default back
+				if a.Type = t; t == "" {
+					a.Type = "auto"
+				}
 			} else if a.Key == "" {
 				a.Key = v
 			} else {
-				return fmt.Errorf("magpie search add <api> <key> [url=<address>] [pick=turns|order]")
+				return fmt.Errorf("magpie search add <api> <key> [url=<address>] [pick=turns|order] [type=lite|auto]")
 			}
 		}
 		if i := slices.IndexFunc(provider.StoredSearchAPIs(), func(x provider.SearchAPI) bool { return x.Vendor == a.Vendor }); i >= 0 && !urlGiven {

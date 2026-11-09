@@ -405,8 +405,15 @@ func (s *Server) askSearchAPI(ctx context.Context, a provider.SearchAPI, query s
 	case "brave":
 		get("/res/v1/web/search", url.Values{"q": {query}, "count": {fmt.Sprint(n)}})
 	case "exa":
-		post("/search", map[string]any{"query": query, "numResults": n,
-			"contents": map[string]any{"text": map[string]any{"maxCharacters": pageText}}})
+		body := map[string]any{"query": query, "numResults": n,
+			"contents": map[string]any{"text": map[string]any{"maxCharacters": pageText}}}
+		// "lite" takes only query, numResults and contents.text of these
+		// (docs.exa.ai/reference/search), so the rest of the body is the
+		// same whichever type is asked; none is Exa's default, auto
+		if a.Type != "" {
+			body["type"] = a.Type
+		}
+		post("/search", body)
 	case "firecrawl":
 		post("/v2/search", map[string]any{"query": query, "limit": n})
 	case "deepseek":

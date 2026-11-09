@@ -46,6 +46,11 @@ type SearchAPI struct {
 	// their pages together found more than any alone. With fewer than two
 	// such APIs that can be asked, a search goes in order as before.
 	Mix bool `json:"mix,omitempty"`
+	// Type is the search type an API with several is asked with, one of
+	// SearchTypes: Exa's "lite" (docs.exa.ai/reference/search), its
+	// low-cost tier, which takes only parameters magpie's request already
+	// keeps to. Empty is the API's own default (Exa's "auto").
+	Type string `json:"type,omitempty"`
 }
 
 // How a search picks among a search API's keys (SearchAPI.Pick).
@@ -53,6 +58,12 @@ const (
 	SearchPickTurns = ""      // in turn, each search the next key
 	SearchPickOrder = "order" // the first until it is refused
 )
+
+// SearchTypes are the types a vendor's search can be asked with
+// (SearchAPI.Type), besides its default ("auto" puts that back). Exa's
+// deep types answer with research rather than pages, and fast and
+// instant are its legacy ones, so they are left out.
+var SearchTypes = map[string][]string{"exa": {"lite"}}
 
 // SearchVendor is a search API magpie can ask.
 type SearchVendor struct {
@@ -313,6 +324,12 @@ func (a SearchAPI) check() error {
 	if a.Pick != SearchPickTurns && a.Pick != SearchPickOrder {
 		return fmt.Errorf("%s: pick %q is not turns or order", a.Name(), a.Pick)
 	}
+	if a.Type != "" && !slices.Contains(SearchTypes[a.Vendor], a.Type) {
+		if len(SearchTypes[a.Vendor]) == 0 {
+			return fmt.Errorf("%s has no search types: leave type= out", a.Name())
+		}
+		return fmt.Errorf("%s: type %q is not auto or %s", a.Name(), a.Type, strings.Join(SearchTypes[a.Vendor], " or "))
+	}
 	if a.Vendor == "searxng" && a.URL == "" {
 		return fmt.Errorf("SearXNG needs its address, as url=https://…")
 	}
@@ -358,6 +375,7 @@ func SetSearchAPI(a SearchAPI) error {
 	a.Vendor = strings.ToLower(strings.TrimSpace(a.Vendor))
 	a.Key, a.URL = strings.Join(a.Keys(), ","), strings.TrimSpace(a.URL)
 	pick := strings.ToLower(strings.TrimSpace(a.Pick))
+	typ := strings.ToLower(strings.TrimSpace(a.Type))
 	f, err := read()
 	if err != nil {
 		return err
@@ -378,6 +396,14 @@ func SetSearchAPI(a SearchAPI) error {
 		a.Pick = f.Searches[i].Pick
 	default:
 		a.Pick = pick
+	}
+	switch {
+	case typ == "auto":
+		a.Type = ""
+	case typ == "" && i >= 0:
+		a.Type = f.Searches[i].Type
+	default:
+		a.Type = typ
 	}
 	if err := a.check(); err != nil {
 		return err

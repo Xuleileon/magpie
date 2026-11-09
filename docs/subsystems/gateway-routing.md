@@ -1763,6 +1763,28 @@ most). It is asked with the time left of a quarter of the search's limit, and
 `plugin.RunSearch` returns when that is out, though the plugin's own fetch may
 run on until the host's abort reaches it. `TestPluginSearchAPI`.
 
+## A search API's type
+
+A search API can have a `type` (`SearchAPI.Type`), the search type it is
+asked with, one of `provider.SearchTypes` for its vendor. Only Exa has one:
+`lite`, Exa's low-cost tier (docs.exa.ai/reference/search). Empty is the
+vendor's default (Exa's `auto`), and `askSearchAPI` then sends no `type`, so
+a search API saved before `type` existed is asked as it was. With `lite` the
+`exa` branch adds `"type": "lite"` and leaves the rest of the body as it is:
+`query`, `numResults` and `contents.text.maxCharacters` are all among the
+parameters Lite takes, and Lite turns away a request with any other.
+Exa's deep types answer with research rather than pages, and `fast` and
+`instant` are its legacy ones, so `check` refuses them, and a type for any
+other vendor.
+
+The CLI sets it: `magpie search add exa <key> type=lite`. As with `pick`, a
+new key alone, or Settings' Add (which sends no type), keeps the type set
+before, and `type=auto` or `type=` puts the default back. `magpie search`
+shows `lite` on the row. Backup and sync carry it with the rest of the entry.
+Settings has no field for it yet.
+
+Covered by `TestExaSearchType`, `TestSearchAPIType` and `TestSearchCLIType`.
+
 ## The search APIs' order, and one switched off
 
 `provider.SearchAPIs` gives the search APIs in their saved order, the
